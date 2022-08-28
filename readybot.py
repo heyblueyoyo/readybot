@@ -5,8 +5,15 @@ from discord.ext import commands
 import json
 import os
 import random
+from dotenv import load_dotenv
+from pathlib import Path
 
 
+dotenv_path = Path('.env')
+load_dotenv(dotenv_path=dotenv_path)
+
+#TOKEN should be added here
+TOKEN = os.getenv('TOKEN')
 intents = discord.Intents.all()
 intents.members = True
 bot = commands.Bot(command_prefix='ready', intents = intents)
@@ -71,13 +78,14 @@ def checkUser(author):
 def updateScore(message):
 	#check if the message is a pic
 	earnedPoints = 1
-	embeds = message.embeds
-	print(len(embeds))
-	if len(embeds) > 0:
-		for embed in embeds:
-			if embed.type == "image":
-				earnedPoints = 10
-				print("The embed type is image")
+	attachments = message.attachments
+	imageTpye = ["jpg", "png"]
+	if(len(attachments) != 0):
+		for attachment in attachments:
+			fileType = attachment.url.split('.')[-1]
+			if(fileType in imageTpye):
+				earnedPoints = 5
+	
 	with open('users.json','r') as f:
 		users=json.load(f)
 	author = message.author
