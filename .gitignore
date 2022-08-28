@@ -2,3 +2,5 @@
 .env
 users.json
 users.json
+__pycache__/utils.cpython-310.pyc
+players.db

@@ -7,6 +7,7 @@ import os
 import random
 from dotenv import load_dotenv
 from pathlib import Path
+from utils import *
 
 
 dotenv_path = Path('.env')
@@ -16,63 +17,48 @@ load_dotenv(dotenv_path=dotenv_path)
 TOKEN = os.getenv('TOKEN')
 intents = discord.Intents.all()
 intents.members = True
-bot = commands.Bot(command_prefix='ready', intents = intents)
+bot = commands.Bot(command_prefix='$', intents = intents)
 
+#TODO: add rules for the bot
+@bot.command()
+async def on_ready(message):
+	await message.channel.send("rules will be displayed as below")
 
-#bot commnads decorator can be used to register any bot.commands
-@bot.command
-async def on_ready():
-	print('Ready Player积分商人在线营业')
-
-@bot.event
-async def on_member_join(member):
-	with open('users.json','r') as f:
-		users=json.load(f)
-	
-	await update_data(users,member)
-
-	with open('users.json','w') as f:
-		json.dump(users,f)
+@bot.command()
+async def info(message):
+	author = message.author
+	user = get_user(author.id)
+	username = user[0][1]
+	score = user[0][2]
+	level = user[0][3]
+	tillNextLevel = 0 #need to calcualte the rule based on the standard
+	await message.channel.send(username+"的当前分数是"+str(score))
+	await message.channel.send(username+"的当前等级是"+str(level))
+	await message.channel.send("距离下一个等级还有"+str(tillNextLevel)+"分")
 
 # @bot.event
-# async def on_message(message):
+# async def on_member_join(member):
 # 	with open('users.json','r') as f:
 # 		users=json.load(f)
-
-
-# 	await add_exp(users,message.author,1)
-# 	await update_data(users,message.author)
-# 	#send a message to server for level up
-# 	await check_level_up(users,message.author,message.channel)
+	
+# 	await update_data(users,member)
 
 # 	with open('users.json','w') as f:
 # 		json.dump(users,f)
 
-
-def checkUser(author):
-	with open('users.json','r') as f:
-		users=json.load(f)
-	hasUser = False
-	if len(users) > 0:
-		for user in users:
-			if author.id == user["userId"]:
-				hasUser = True
-				continue
-	if hasUser == False :
+def checkUser(message):
+	author = message.author
+	user = get_user(author.id)
+	if not user:
+		print("No such user exists, new user is added")
 		username = author.display_name
 		userId = author.id
-		newUser = {
-			"username": username,
-			"userId" : userId,
-			"score": 0,
-			"level": "silver",
-			"time": NULL
-		}
-		users.append(newUser)
-	with open('users.json','w') as f:
-		json.dump(users,f)
+		create_user(userId, username)
+	else:
+		print(user[0][1]) #0:ID, 1:username, 2: score, 3: level, 4: time 
+		print("The user exists")
 
-#TODO: return the score that the user can get from sending message
+# TODO: return the score that the user can get from sending message
 # image : +10
 # text : +1
 def updateScore(message):
@@ -86,24 +72,15 @@ def updateScore(message):
 			if(fileType in imageTpye):
 				earnedPoints = 5
 	
-	with open('users.json','r') as f:
-		users=json.load(f)
 	author = message.author
-	for user in users:
-		print("The original score is " + str(user["score"]))
-		score = user["score"] + earnedPoints
-		print("The updated score is " + str(score))
-		#TODO:opeartion regarding level up after adding the earned points
-		level = user["level"]
-		time = user["time"]
-		if author.id == user["userId"]:
-			user["score"] = score
-			user["level"] = level
-			user["time"] = time
-			print(user)
-		
-	with open('users.json','w') as f:
-		json.dump(users,f)
+	user = get_user(author.id)
+	updatedScore = user[0][2]+earnedPoints
+	updatedLevel = user[0][3] #TODO: calcualte if the level is changed
+	updatedUser = {
+		"score": updatedScore,
+		"level": updatedLevel
+	}
+	update_user(author.id, updatedUser)
 
 @bot.event
 async def on_message(message):
@@ -111,27 +88,10 @@ async def on_message(message):
 	if message.author.id == 846860035783131216:
 		return
 	#check if the user already exists in db/json, and the new user will be created if it does not exist
-	checkUser(message.author)
+	checkUser(message)
 	#check how many points can be added to the user regarding its sent message
 	updateScore(message)
-
-	channel = message.channel
-	if message.content == "使用":
-		await channel.send("Ready Player 积分商人使用规则如下")
-	if message.content == "info":
-		username = message.author.display_name
-		score = 0
-		level = "silver"
-		with open('users.json','r') as f:
-			users=json.load(f)
-		for user in users:
-			if message.author.id == user["userId"]:
-				score = user["score"]
-				level = user["level"]
-				continue
-		await channel.send("The current user is " + username)
-		await channel.send("The user score is " + str(score))
-		await channel.send("The user level is " + level)
+	await bot.process_commands(message)
 
 
 ##########3await voice channels
